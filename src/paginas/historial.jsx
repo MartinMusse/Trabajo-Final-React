@@ -13,9 +13,8 @@ export default function Historial() {
 
   return (
     <div>
-      {" "}
       <h1 className="center separador">Ver Historial 📋</h1>
-      <div className=" center div-cotizador">
+      <div className="center div-cotizador">
         <table>
           <thead>
             <tr>
@@ -28,15 +27,15 @@ export default function Historial() {
             </tr>
           </thead>
           <tbody>
-            {data.map((data, id) => (
+            {data.map((item, id) => (
               <tr key={id}>
-                <td>{data.fecha}</td>
-                <td>{data.tipoPropiedad}</td>
-                <td>{data.tipoUbicacion}</td>
-                <td>{data.metros2}</td>
-                <td>{data.poliza}</td>
+                <td>{item.fecha}</td>
+                <td>{item.tipoPropiedad}</td>
+                <td>{item.tipoUbicacion}</td>
+                <td>{item.metros2}</td>
+                <td>{item.poliza.toFixed(2)}</td>
                 <td>
-                </td>
+                  </td>
               </tr>
             ))}
           </tbody>
@@ -49,4 +48,5 @@ export default function Historial() {
       </div>
     </div>
   );
+  
 }

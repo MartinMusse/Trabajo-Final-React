@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+
 import Swal from "sweetalert2";
 import Propiedad from "/src/componentes/propiedad";
 import Ubicacion from "/src/componentes/ubicacion";
@@ -15,33 +16,33 @@ export default function Index() {
     poliza: 0,
   });
 
-  const [categorias, setCategorias] = useState();
+  const [categorias, setCategorias] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
-      const datos = await fetch("datos.json", {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-      });
-      const cat = await datos.json();
-      setCategorias(cat);
+      try {
+        const datos = await fetch("datos.json", {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        });
+        const cat = await datos.json();
+        setCategorias(cat);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
     };
+  
     fetchData();
-  }, [data]);
+  }, []);
+  
 
-  const propiedades = useMemo(() => {
-    return (categorias || []).filter(
-      (itemCat) => itemCat.categoria === "propiedad"
-    );
-  }, [categorias]);
+  const propiedades = useMemo(() => (categorias || []).filter(itemCat => itemCat.categoria === "propiedad"), [categorias]);
 
-  const ubicaciones = useMemo(() => {
-    return (categorias || []).filter(
-      (itemCat) => itemCat.categoria === "ubicacion"
-    );
-  }, [categorias]);
+
+  const ubicaciones = useMemo(() => (categorias || []).filter(itemCat => itemCat.categoria === "ubicacion"), [categorias]);
+
 
   const handlePropChange = (e) => {
     const selectedOption = e.target.options[e.target.selectedIndex];
@@ -51,7 +52,7 @@ export default function Index() {
       tipoPropiedad: selectedOption.textContent,
     }));
   };
-
+  
   const handleUbiChange = (e) => {
     const selectedOption = e.target.options[e.target.selectedIndex];
     setData((oldData) => ({
@@ -66,64 +67,84 @@ export default function Index() {
   };
 
   const cotizarPoliza = () => {
-    const poliza =
-      data.costoM2 * data.factorPropiedad * data.factorUbicacion * data.metros2;
+    const { costoM2, factorPropiedad, factorUbicacion, metros2 } = data;
+    const poliza = costoM2 * factorPropiedad * factorUbicacion * metros2;
     setData((oldData) => ({ ...oldData, poliza }));
-    return poliza; // valor de poliza
+    return poliza;
   };
+  
 
   const guardarEnHistorial = () => {
     const poliza = cotizarPoliza();
-    // se guarda el historial en el LocalStorage
-    const savingData = localStorage.getItem("savingData");
-    const parsedSavingData = JSON.parse(savingData || "[]");
-    parsedSavingData.push({ ...data, poliza, fecha: new Date() });
-    localStorage.setItem("savingData", JSON.stringify(parsedSavingData));
-
+    const newData = { ...data, poliza, fecha: new Date() };
+  
+    // se guarda en historial
+    guardarEnLocalStorage(newData);
+  
     // Mostrar SweetAlert
+    mostrarAlerta('Guardado en historial');
+  };
+  
+  const guardarEnLocalStorage = (newData) => {
+    try {
+      const savingData = localStorage.getItem("savingData") || "[]";
+      const parsedSavingData = JSON.parse(savingData);
+      parsedSavingData.push(newData);
+      localStorage.setItem("savingData", JSON.stringify(parsedSavingData));
+    } catch (error) {
+      console.error('Error al guardar en el historial:', error);
+    }
+  };
+  
+  const mostrarAlerta = (mensaje) => {
     Swal.fire({
       position: "center",
       icon: "success",
-      title: "Guardado en historial",
+      title: mensaje,
       showConfirmButton: true,
       timer: 2000,
     });
   };
+  
 
   const validarCampos = () => {
-    if (
-      data.tipoPropiedad === "" ||
-      data.tipoUbicacion === "" ||
-      data.metros2 === 0
-    ) {
-      //error
-      Swal.fire({
-        position: "center",
-        icon: "error",
-        title: "Debe completar todos los campos",
-        showConfirmButton: false,
-        timer: 2000,
-      });
+    if (esCamposValidos()) {
+      cotizarPoliza();
     } else {
-      cotizarPoliza()
+      mostrarError("Debe completar todos los campos");
     }
   };
+  
+  const esCamposValidos = () => {
+    return data.tipoPropiedad !== "" && data.tipoUbicacion !== "" && data.metros2 > 0;
+  };
+  
+  const mostrarError = (mensaje) => {
+    Swal.fire({
+      position: "center",
+      icon: "error",
+      title: mensaje,
+      showConfirmButton: false,
+      timer: 2000,
+    });
+  };
+  
 
   return (
     <div>
       <div className="historial">
-        <a href="/historial">
-          <span title="Ver Historial">📋</span>
+        <a href="/historial" title="Ver Historial">
+          <span>📋</span>
         </a>
       </div>
       <h1 className="center separador">Seguros del hogar 🏡</h1>
       <div className="center div-cotizador">
         <h2 className="center separador">Completa los datos solicitados</h2>
-
+  
         <Propiedad propiedades={propiedades} handlePropChange={handlePropChange} />
         <Ubicacion ubicaciones={ubicaciones} handleUbiChange={handleUbiChange} />
         <MetrosCuadrados data={data} handleM2Change={handleM2Change} />
-
+  
         <div className="center separador">
           <button onClick={validarCampos} className="button button-outline">
             Cotizar
@@ -131,14 +152,18 @@ export default function Index() {
         </div>
         <div className="center separador">
           <p className="importe">
-            Precio estimado: $
-            <span id="valorPoliza">{data.poliza.toFixed(2)}</span>
+            Precio estimado: ${data.poliza.toFixed(2)}
           </p>
-          <h3 style={{cursor: "pointer"}} className="" title="Guardar en historial" onClick={guardarEnHistorial}>
+          <h3
+            style={{ cursor: "pointer" }}
+            title="Guardar en historial"
+            onClick={guardarEnHistorial}
+          >
             💾
           </h3>
-          </div>
+        </div>
       </div>
     </div>
   );
+  
 }
